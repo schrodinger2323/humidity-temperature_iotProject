@@ -19,15 +19,16 @@ ESP8266, üzerinde WiFi modülü bulunan küçük, düşük maliyetli ve oldukç
 Bizim projemizde sıcaklık ve nem sensörü (DHT11) ile ölçtüğümüz verileri internet üzerinden ThingSpeak platformuna göndermek istedik. Arduino’nun kendisi internete bağlanma yeteneğine sahip olmadığı için, bu işi yapmak üzere ESP8266 modülünü kullandık.Arduino ile ESP8266 arasında yazılımsal seri iletişim kurduk ve ESP8266’ya AT komutları göndererek WiFi ağına bağlanmasını, veri iletmesini sağladık.\
 ESP8266 ile haberleşmek için AT komut seti kullanılır. AT komutları sayesinde modüle bağlanma, veri gönderme, bağlantıyı kapatma gibi işlemler yaptırılabilir.\
 Aşağıda bu projede kullandığımız önemli AT komutlar ve işlevleri yer almaktadır:
-- **AT**	Modülün çalıştığını test eder. Eğer çalışıyorsa OK cevabı döner.
-- **AT+CWMODE=1**	ESP8266’yı Client (istasyon) moduna alır. Bu sayede WiFi ağına bağlanabilir.
+- **AT**	ESP8266’nın çalışıp çalışmadığını test eder. Yanıt olarak OK dönmelidir.
+- **AT+CWMODE=1**	ESP'yi Wi-Fi istemci moduna (Station Mode) geçirir.
 - **AT+CWQAP**	Daha önce bağlanılan WiFi ağından çıkış yapar.
 - **AT+RST**	ESP8266’yı yeniden başlatır (reset).
-- **AT+CWJAP="SSID","ŞİFRE"**	Belirtilen WiFi ağına bağlanmayı dener.
+- **AT+CWJAP="SSID","ŞİFRE"**	Belirtilen Wi-Fi ağına bağlanmak için kullanılır.
 - **AT+CIPSTART="TCP","IP",80**	Belirtilen IP adresi ve port üzerinden TCP bağlantısı kurar (bizim için bu, ThingSpeak sunucusu).
-- **AT+CIPSEND=n**	n bayt uzunluğunda veri göndermek üzere hazırlar.
+- **AT+CIPSEND=n**	n bayt uzunluğunda veri göndermek üzere hazırlar. > işareti alınırsa veri gönderimine hazırdır.
 - **GET /update?... HTTP/1.0**	ThingSpeak'e gönderilecek HTTP GET isteğidir. Sensör verilerini bu yolla sunucuya yollarız.
 - **AT+CIPCLOSE**	Açık olan TCP bağlantısını kapatır.
+- **AT+CIPMUX=1** Çoklu bağlantı modunu etkinleştirir (birden fazla bağlantı açılabilir).
 
 ### 🌡️ DHT11 Nedir, Neden Kullandık?
 DHT11, hem sıcaklık hem de nem ölçümü yapabilen düşük maliyetli ve kullanımı kolay dijital bir sensördür. İçerisinde bir nem sensörü ve termistör (sıcaklık sensörü) barındırır. Ölçtüğü verileri dijital olarak gönderdiği için ADC (Analog-Dijital Dönüştürücü) pinlerine ihtiyaç duymaz.\
@@ -294,13 +295,13 @@ Bu testin amacı, ESP8266 modülünün ThingSpeak sunucusuna başarılı şekild
 - 📋 Elde Edilen Çıktılar ve Gözlemler
 ![Ekran görüntüsü 2025-04-25 041243](https://github.com/user-attachments/assets/d0884339-1bd8-4138-b39a-d0d1bb85f89c)
 
-- 🧠 Yorumlar ve Analiz
+- Yorumlar ve Analiz
   + AT+CWMODE=1 ve AT+CIFSR komutları başarısız görünüyor ancak bu, seri porttan gelen cevabın bozuk okunması nedeniyle oluşmuştur. ESP8266 muhtemelen bu komutları işledi.
 
   + AT+CWJAP ve AT+CIPSTART komutları başarıyla tamamlandı; bu da modülün Wi-Fi ağına bağlanabildiğini ve internete çıkabildiğini gösteriyor.
 
   + AT+CIPSEND komutu başarısız olarak işaretlense de ThingSpeak üzerinde veri güncellendi, bu da GET isteğinin başarıyla gönderildiğini ve işlendiğini kanıtlar.
-- ✅ Sonuç
+- Sonuç
 Bu test sayesinde:
 
   + ESP8266'nın doğru çalıştığı, Wi-Fi bağlantısını kurabildiği ve veri iletebildiği doğrulanmıştır.
@@ -311,10 +312,63 @@ Bu test sayesinde:
 
  Bu test, yazılım tarafındaki yanıt kontrol mekanizmalarının iyileştirilmesi gerektiğini gösterse de, sistemin genel işlevselliğini başarıyla kanıtlamıştır.
 
+## Notlar / Ek Gözlemler
+1. ThingSpeak Kullanım ve API Sınırları Kontrolü
+Test süreci sırasında, veri gönderim sorunlarının sadece ESP8266 kaynaklı olup olmadığını netleştirmek için ThingSpeak platformunun kullanım şartlarını ve API limitlerini de inceledik.
+ThingSpeak’in ücretsiz kullanım lisansı altında, kullanıcıların:
 
+  + Yılda maksimum 3 milyon mesaj gönderebileceği,
 
+  + Maksimum 4 kanal açabileceği,
 
+  + Bir kanalı her 15 saniyede bir güncelleyebileceği (ücretli kullanıcılar için bu sınır 1 saniyedir) belirtildiğini öğrendik.
 
+Veri gönderiminin 15 saniyeden kısa aralıklarla yapılması durumunda, ThingSpeak’in yeni verileri kabul etmeme veya gecikmeli güncelleme yapma ihtimalini göz önünde bulundurarak, minimum 20 saniyelik aralıklarla veri göndererek sistem güncellemelerinin düzgün şekilde işlenmesini sağladık. Sonuç olarak, hem ESP8266'nın hem de ThingSpeak platformunun doğru çalıştığı net olarak doğrulanmış oldu.
 
+2. ESP8266 Baud Rate Uyumsuzluğu
+Başlangıçta hem esp.begin() hem de Serial.begin() komutlarını 9600 baud rate ile ayarlamıştık, ancak ESP8266'dan tutarsız ve bozuk yanıtlar alıyorduk. Bunun nedeni, ESP8266 modülünün fabrika çıkışı 115200 baud rate ile çalışıyor olmasıydı. Arduino ile ESP8266 arasında doğru iletişim kurabilmek için esp.begin(115200) olarak ayarladık. Bilgisayarla arduino arasında olan bağlantı için ise Serial.begin(9600) yeterli oldu. Bu değişiklik sonrasında ESP8266 ile iletişim sorunsuz şekilde sağlandı.
 
+3. ESP8266 RX Pinine Yüksek Voltaj Uygulanması
+Başlangıçta ESP8266'nın RX pinini doğrudan Arduino’nun TX pinine bağlamıştık. Ancak Arduino 5V ile çalıştığı için, ESP8266'nın 3.3V toleranslı RX pini bu voltaja maruz kaldı ve modül ciddi şekilde ısınmaya başladı. Bu nedenle modülün bozulduğunu düşündük ve gereksiz yere zaman kaybettik.
 
+Daha sonra 1K ohmluk 3 dirençle basit bir voltaj bölücü devre kurarak Arduino’nun 5V çıkışını güvenli şekilde yaklaşık 3.3V’a düşürdük. Bu sayede ESP8266 stabil şekilde çalışmaya başladı.
+Alternatif olarak:
+  - 2 dirençle klasik voltaj bölücü yapılabilir (örneğin 1K + 2K)
+
+  - Level shifter modülü kullanılabilir (daha güvenli ve uzun vadeli çözüm)
+
+  - Arduino'nun 3.3V uyumlu versiyonları (ör. 3.3V Pro Mini) tercih edilebilir
+
+Voltaj bölücü yapılmadan bazı durumlarda ESP8266 çalışıyor gibi görünse de, bu durum modülün zarar görmesine veya ömrünün kısalmasına neden olabilir. Bu yüzden 3.3V seviyesine uygun bir giriş mutlaka sağlanmalıdır.
+
+4. ThingSpeak'e Tarayıcı Üzerinden GET İsteği Gönderme
+Projeye ilk başladığımızda ESP8266 üzerinden ThingSpeak'e veri gönderimi yapmaya çalıştık. ilgili kodları Turcademy sitesinde bulunan "Nesnelerin Interneti" kitabındaki 5.projeden almıştık. Ancak bu kodda ESP8266 modülü ThingSpeak sunucusuyla bağlantı kuramadan bağlantıyı kapatıyordu. Yani ESP, komutu alıyordu ancak bağlantı isteği başarısız oluyordu.  HTTP isteğini şu şekilde doğrudan tarayıcıya yapıştırdık:
+https://api.thingspeak.com/update?api_key=HDB4L*****RO6I&field1=50&field2=25\
+Bu yöntem başarılı oldu — tarayıcıda ekrana bir sayı (örneğin 1347) döndü. Bu sayı, ThingSpeak’in veri tabanında oluşturduğu yeni kayıt numarasıydı. Bu bize şunu gösterdi:
+ESP8266 başarılı olamasa da, doğru yapıdaki bir HTTP GET isteği ThingSpeak sunucusu tarafından doğrudan işlenebiliyor.
+Bunun nedeni:
+  - GET isteği zaten ThingSpeak’in HTTP API’siyle uyumluydu.
+  - Tarayıcıda HTTPS üzerinden gönderilse bile, GET parametreleri doğruysa sunucu veriyi işliyor.
+  - ThingSpeak cevaben kayıt numarası döndüğünde veri başarıyla işlendiği anlamına geliyor.
+  - Cevap olarak 0 dönseydi bu ya veri hatası ya da zaman sınırı ihlali olurdu.
+ 
+İlk koddaki sorunlar:
+- Problem | Açıklama
+    + TCP bağlantısı kurulamadı (CIPSTART) | Sunucuya bağlantı başarılı şekilde kurulamıyordu.
+    + CIPSEND sırasında doğru veri uzunluğu verilmedi | Uzunluk hesabında \r\n karakterleri eksikti.
+    + HTTP isteği eksikti | Host: başlığı ve HTTP/1.1 gibi detaylar yoktu.
+    + Bağlantı kapanmadı | CIPCLOSE komutu kullanılmadı, bu da sonraki denemeleri etkiledi.
+
+Güncel sürümde (DHT11_humidity_temperature.ino) aşağıdaki adımlar başarıyla uygulandı:
+- Yapılan Doğru İşlem | Açıklama
+    + CIPSTART ile bağlantı kuruldu | TCP bağlantısı başarılı şekilde açıldı.
+    + CIPSEND için veri uzunluğu +4 ile belirtildi | \r\n karakterleri hesaba katıldı.
+    + HTTP GET doğru formatta gönderildi | Sunucu parametreleri doğru şekilde aldı.
+    + Bağlantı her seferinde kapatıldı (CIPCLOSE) | Bağlantı problemi yaşanmadı.
+    + Veri gönderim aralığı korundu (delay(20000)) | ThingSpeak’in rate limit’ine uyuldu.
+
+-  Genel Gözlem ve Öğrenim
+  + ESP8266 ile HTTP istekleri yapılırken, veri uzunluğu, bağlantı sırası, ve paket formatı kritik önemdedir.
+  + Basit bir GET isteği bile başarılı olabilmek için belli kurallara uygun yapılmalıdır.
+  + Tarayıcıdan yapılan GET çağrıları, sadece testi doğrulamak için kullanışlıdır, çünkü onlar otomatik olarak tüm HTTP başlıklarını içerir.
+  + ESP ise her detayı elle vermemizi ister: veri uzunluğu, bağlantı açılması, kapanması, HTTP satırlarının uygun formatı gibi.
