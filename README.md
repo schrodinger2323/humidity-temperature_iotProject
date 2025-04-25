@@ -12,7 +12,37 @@ Bu projede, DHT11 sıcaklık ve nem sensörü kullanılarak elde edilen veriler,
 
 -ESP8266 WiFi Modülü
 
--Bağlantı kabloları
+-12-F/M. 5-M/M jumper kablo
+
+### 📡 ESP8266 Nedir? Niçin Kullanılır?
+ESP8266, üzerinde WiFi modülü bulunan küçük, düşük maliyetli ve oldukça güçlü bir mikrodenetleyicidir. Genellikle nesnelerin interneti (IoT) projelerinde kullanılır. İnternete bağlanmak ve veri alışverişi yapmak için yaygın olarak tercih edilir.\
+Bizim projemizde sıcaklık ve nem sensörü (DHT11) ile ölçtüğümüz verileri internet üzerinden ThingSpeak platformuna göndermek istedik. Arduino’nun kendisi internete bağlanma yeteneğine sahip olmadığı için, bu işi yapmak üzere ESP8266 modülünü kullandık.Arduino ile ESP8266 arasında yazılımsal seri iletişim kurduk ve ESP8266’ya AT komutları göndererek WiFi ağına bağlanmasını, veri iletmesini sağladık.\
+ESP8266 ile haberleşmek için AT komut seti kullanılır. AT komutları sayesinde modüle bağlanma, veri gönderme, bağlantıyı kapatma gibi işlemler yaptırılabilir.\
+Aşağıda bu projede kullandığımız önemli AT komutlar ve işlevleri yer almaktadır:
+- **AT**	Modülün çalıştığını test eder. Eğer çalışıyorsa OK cevabı döner.
+- **AT+CWMODE=1**	ESP8266’yı Client (istasyon) moduna alır. Bu sayede WiFi ağına bağlanabilir.
+- **AT+CWQAP**	Daha önce bağlanılan WiFi ağından çıkış yapar.
+- **AT+RST**	ESP8266’yı yeniden başlatır (reset).
+- **AT+CWJAP="SSID","ŞİFRE"**	Belirtilen WiFi ağına bağlanmayı dener.
+- **AT+CIPSTART="TCP","IP",80**	Belirtilen IP adresi ve port üzerinden TCP bağlantısı kurar (bizim için bu, ThingSpeak sunucusu).
+- **AT+CIPSEND=n**	n bayt uzunluğunda veri göndermek üzere hazırlar.
+- **GET /update?... HTTP/1.0**	ThingSpeak'e gönderilecek HTTP GET isteğidir. Sensör verilerini bu yolla sunucuya yollarız.
+- **AT+CIPCLOSE**	Açık olan TCP bağlantısını kapatır.
+
+### 🌡️ DHT11 Nedir, Neden Kullandık?
+DHT11, hem sıcaklık hem de nem ölçümü yapabilen düşük maliyetli ve kullanımı kolay dijital bir sensördür. İçerisinde bir nem sensörü ve termistör (sıcaklık sensörü) barındırır. Ölçtüğü verileri dijital olarak gönderdiği için ADC (Analog-Dijital Dönüştürücü) pinlerine ihtiyaç duymaz.\
+Bu projede DHT11 sensörünü kullanarak ortamın anlık sıcaklık ve nem değerlerini ölçtük ve bu verileri LCD ekranda gösterip aynı zamanda internet aracılığıyla ThingSpeak'e göndererek grafiksel olarak uzaktan izlenebilir hale getirdik. Bu sayede, çevresel koşullarını izlemek istediğimiz akıllı sistemlerin temelini oluşturmuş olduk.
+
+### 📺 I2C Modüllü LCD Ekran Kullanmanın Avantajları
+Projede kullandığımız LCD ekran, I2C modülüne sahiptir. I2C modüllü LCD sayesinde devrenin hem donanımsal hem de görsel yönetimini daha verimli şekilde gerçekleştirdik. Normalde 16x2 LCD ekranlar çalışmak için 6-8 arası pin bağlantısı isterken, I2C modülü sayesinde sadece 2 pinle (SDA ve SCL) bağlantı sağlanır. Bu da şu avantajları beraberinde getirir:
+- Daha az kablo kullanımı sayesinde karmaşıklık azalır, devrenin kurulumu sade ve düzenli olur.
+- Diğer pinleri boş bırakılır, böylece Arduino’nun başka görevler için daha fazla pinini kullanabiliriz.
+- I2C sayesinde aynı veri yolu üzerinden birden fazla cihaz kontrol edilebilir.
+- Modülün üzerinde yer alan potansiyometre, LCD ekranın parlaklığını ayarlamamıza olanak tanır. Bu sayede yazıların okunabilirliği artırılabilir. Üstelik ek potansiyometre kullanımına gerek olmadan.
+
+### 🌐 ThingSpeak Nedir, Bu Projede Neden Kullandık?
+ThingSpeak, IoT (Nesnelerin İnterneti) projeleri için geliştirilmiş ücretsiz bir veri toplama ve görselleştirme platformudur. Özellikle sensörlerden gelen verileri bulutta saklamak, grafiklerle izlemek ve başka uygulamalara aktarmak için kullanılır. MathWorks tarafından desteklendiği için MATLAB entegrasyonu da sunar.\
+Biz bu projede DHT11 sensöründen aldığımız sıcaklık ve nem verilerini internete yüklemek için ThingSpeak kullandık  
 
 ## ⚙️ Bağlantılar
 
@@ -22,189 +52,171 @@ Bu projede, DHT11 sıcaklık ve nem sensörü kullanılarak elde edilen veriler,
 
 -I2C modüllü LCD GND->GND, VCC-> 5V, SDA-> A4, SCL-> A5
 
+## DİKKAT!
+esp8266 3V toleranslıdır. RX pini arduino'nun 5V veren pinlerine direkt olarak bağlanmamalıdır. voltaj regülatörü, adaptör kullanılabilir. biz 3 tane 1K direnç kullanarak voltaj bölücü devresi yaptık. böylece esp8266nın RX pinine yaklaşık 3.3V gönderebildik. aşağıda voltaj bölücü devrenin şematik gösterimi ve bütün modüllerin breadboard üzerinde gerçeklenmiş hali bulunmaktadır: 
+
+![WhatsApp Image 2025-04-25 at 01 41 46](https://github.com/user-attachments/assets/69e11f07-1c94-4423-b1e9-2fc2c5188db7) ![WhatsApp Image 2025-04-25 at 01 36 41](https://github.com/user-attachments/assets/d15dc9d5-2da4-4b0e-acf6-50d05aa2dcbb)
+
+
+
 ## 📡 ThingSpeak Yapılandırması ve API anahtarı alma
 1. https://thingspeak.com/ adresine gidin ve hesabınız yoksa bir hesap oluşturun. Hesabınıza giriş yapın.
 2. "Channels" menüsünde "New Channel" tıklanır.
 3. Yeni kanalı oluşturmak için ekranda beliren formda kanalın adı "Nem&Sicaklik" girilir.
 4. field1 ve field2 alanlarına "nem" ve "sıcaklık" yazılır. her iki alan için onay kutuları işaretlenir.
 5. sayfanın altında Save Channel basılarak kaydedilir. 
-6. API Keys sekmesine gidilerek "Write API key" altındaki API numarası kaydedilir. bu daha sonra kod içerisinde char *api_anahtar = "BURAYA_API_KEY"; satırına yazılır.
+6. API Keys sekmesine gidilerek "Write API key" altındaki API numarası kaydedilir. bu daha sonra kod içerisinde apiKey değişkeninde saklanır. 
 
 
-## 🧰 Kullanılan Kütüphaneler
-
-- #include <DHT.h>  
-- #include <Wire.h  
-- #include <LiquidCrystal_I2C.h>  
-- #include <Timer.h>  
-- #include <SoftwareSerial.h>
+## 📦 1. Kütüphanelerin Dahil Edilmesi
+```
+#include <DHT.h>               // DHT11 sıcaklık ve nem sensörü kütüphanesi
+#include <LiquidCrystal_I2C.h> // I2C üzerinden LCD ekran kontrolü için kütüphane
+#include <SoftwareSerial.h>    // ESP8266 ile haberleşme için yazılım seri haberleşme
+```
+Bu kütüphaneler sayesinde sensör okumaları yapılabilir, LCD'ye veri yazılabilir ve ESP8266 modülü ile haberleşme sağlanabilir.
 
 DHT.h -> https://github.com/adidax/dht11
 
 LiquidCrystal_I2C.h -> https://github.com/fdebrabander/Arduino-LiquidCrystal-I2C-library
 
-Timer.h-> https://github.com/JChristensen/Timer/tree/master
-
-SoftwareSerial.h-> arduino içinde hazırda var.
+SoftwareSerial.h-> arduino içinde hazırda var.\
 
 yukarıda sıralanan kütüphaneler ilgili linklerden indirilip kopyalanıp arduino klasörünün altındaki library klasörüne yapıştırılması gerekir. veya arduino ide üzerinden sketch>include library> add .zip library... ile de dahil edilebilir. 
 
-## Global değişken tanımlamaları
 
-**LiquidCrystal_I2C lcd(0x27, 16, 2);** lcd: I2C protokolüyle haberleşen 16 sütun 2 satır LCD ekranı tanımlar. 0x27, LCD'nin I2C adresidir. Ekran üzerinden sıcaklık ve nem verileri gösterilecek.
 
-**SoftwareSerial Serial1(2, 3);** Serial1: ESP8266 ile haberleşmek için yazılımsal seri port. Arduino'nun dijital pin 2'si TX, 3'ü RX olarak ayarlanmıştır.
+## 🌍 2. Global Değişken Tanimlamalari ve Nesneler
+Bu kısımda sensörler, LCD ekran ve WiFi için gerekli tüm nesneler ve ayarlar tanımlanır:
 
-**#define DHT11pin 8**                 
-**#define DHTTYPE DHT11**               
-**DHT dht(DHT11pin, DHTTYPE);**
+```
+#define RX 2              // ESP8266 RX pini (Arduino'dan TX çıkışı)
+#define TX 3              // ESP8266 TX pini (Arduino'ya RX girişi)
+#define DHTPIN 8          // DHT11 sensörünün bağlı olduğu dijital pin
+#define DHTTYPE DHT11     // Kullanılan sensör tipi: DHT11
 
-DHT11 sensörünün S (Signal) pininin bağlı olduğu arduino pin numarası (8), Kullanılan sensör tipi (DHT11), Sıcaklık ve nem ölçümlerini gerçekleştirecek nesne tanımlanmıştır. dht.readTemperature() ve dht.readHumidity() ile veri okunur.
+DHT dht(DHTPIN, DHTTYPE);               // DHT sensör nesnesi
+LiquidCrystal_I2C lcd(0x27, 16, 2);     // LCD nesnesi (adres: 0x27, 16 sütun, 2 satır)
+SoftwareSerial esp8266(RX, TX);         // ESP8266 ile yazılım seri portu oluşturuluyor
 
-**char *api_anahtar = "HDB4L********";** api_anahtar: Verilerin gönderileceği ThingSpeak kanalının özel anahtarı. Kanalın güvenli şekilde veri almasını sağlar. kanal oluştururken kaydettiğimiz api key numarası buraya yapıştırılır. 
+// WiFi ve ThingSpeak ayarları
+String ssid = "TP-Link_4E66";                 // WiFi SSID (ağ adı)
+String password = "wormhole";           // WiFi şifresi
+String apiKey = "OEOBVWS4YRDPUZH9";     // ThingSpeak write API anahtarı
+String host = "api.thingspeak.com";     // Sunucu adresi
+String port = "80";                     // HTTP portu
 
-**Timer t;**  t: Belirli aralıklarla (örneğin 20 saniyede bir) işlem yapılmasını sağlayan zamanlayıcı nesnesi. Donanımsal değil, yazılımsal zamanlama kullanılır.
+// AT komutu yönetimi için sayaçlar
+int countTrueCommand;
+int countTimeCommand;
+boolean found = false;
+```
+NOT:
+- ssid ve password değişkenlerini kendi Wi-Fi ağınıza göre değiştirin.
 
-**int nem, sicaklik;** nem, sicaklik: DHT11 sensöründen okunan sıcaklık ve nem değerlerini saklamak için tanımlanmış global değişkenler.
+- apiKey kısmına kendi ThingSpeak kanalınızın yazma API anahtarını girin.
+## ⚙️ 3. setup() Fonksiyonu
+Cihaz ilk açıldığında bir defaya mahsus çalışan başlatma bloğudur. LCD, DHT sensörü ve ESP8266 başlatılır, WiFi ağına bağlanılır.
+```
+void setup() {
+  Serial.begin(9600);              // Arduino’nun seri haberleşmesi başlatılıyor
+  esp8266.begin(115200);           // ESP8266 ile haberleşme başlatılıyor (baud rate 115200)
 
-- **void httpGet(String ip, String path, int port = 80);**      ESP8266 üzerinden ThingSpeak'e HTTP GET isteği gönderir. 
-- **void send2server();**                                       Ölçülen sıcaklık ve nem değerlerini URL’ye yerleştirip httpGet() fonksiyonunu çağırır.
-- **void connect_wifi(String cmd, int t);**                     ESP8266'ya AT komutları göndererek modül ile iletişim kurulmasını sağlar.
+  lcd.begin();                     // LCD ekran başlatılıyor
+  lcd.backlight();                 // Arka ışık açılıyor
+  lcd.setCursor(0, 0);             
+  lcd.print("Baglaniyor...");      // LCD'ye bilgi mesajı yazılıyor
 
-## 🚀 setup() Fonksiyonu
-  ```
-  lcd.begin();           // LCD başlatılır (I2C üzerinden haberleşme)
-  lcd.backlight();       // LCD'nin arka ışığı açılır
-  lcd.clear();           // LCD ekran temizlenir
-  lcd.print(" Nem&Sicaklik");
-  lcd.setCursor(0, 1);   // İkinci satırın başına geç
-  lcd.print(" Uygulamasi ");
-  delay(4000);           // 4 saniye bekleme (bilgi ekranı gösterimi)
-  ```
-  ```
-  lcd.clear();
-  lcd.print("DHT11&Thingspeak");
-  lcd.setCursor(0, 1);
-  lcd.print(" NIT ");    // Projeye ait ikinci karşılama mesajı
-  delay(4000);           // 4 saniye bekleme
-  ```
-  ```
-  - Serial1.begin(115200);   // ESP8266 ile yazılımsal seri port üzerinden iletişim başlatılır
-  - Serial.begin(115200);    // Arduino'nun ana seri portu (USB üzerinden bilgisayar bağlantısı)
-  ```
-  ```
-  lcd.clear();
-  lcd.print("Wifi baglaniyor");
-  lcd.setCursor(0, 1);
-  lcd.print("Lutfen bekleyin....");
-  Serial.println("Wifi baglaniyor....")
-  ```
-  ```
-  connect_wifi("AT", 1000);                         // ESP8266’ya temel AT komutuyla cevap veriyor mu testi
-  connect_wifi("AT+CWMODE=1", 1000);                // ESP’yi WiFi istemci (station) moduna alır
-  connect_wifi("AT+CWQAP", 1000);                   // Mevcut WiFi bağlantısını koparır
-  connect_wifi("AT+RST", 8000);                     // ESP8266’yı resetler
-  connect_wifi("AT+CWJAP=\"WIFI_ADI\",\"WIFI_SIFRESI\"", 10000); // Belirtilen WiFi ağına bağlanır
-  ```
-  ```
-  Serial.println("Wifi bağlandı.");
-  lcd.clear();
-  lcd.print("Wifi baglandi.");                      // Ekrana bağlantı durumu yazılır
-  ```
-  ```
-  delay(2000);                 // Kısa bekleme
-  ```
-  ```
-  **t.every(20000, send2server);**       // Her 20 saniyede bir sunucuya veri gönderme zamanlaması
-  ```
-## 🔁 loop() Fonksiyonu Açıklaması
-   ```
-  dht.begin();
-  ```
-  DHT11 sensörü her döngüde başlatılıyor (opsiyonel, sadece ilk kez setup() içinde yapılması genellikle yeterlidir ama burada güvenlik için tekrar çağrılmış).
-  
-   ```
+  dht.begin();                     // DHT sensörü başlatılıyor
+
+  // ESP8266’ya AT komutları gönderiliyor
+  sendCommand("AT", 5, "OK");                                        // Modül çalışıyor mu kontrolü
+  sendCommand("AT+CWMODE=1", 5, "OK");                               // İstemci modu
+  sendCommand("AT+CWJAP=\"" + ssid + "\",\"" + password + "\"", 20, "OK");  // WiFi bağlantısı
+
+  lcd.clear();                    // LCD temizleniyor
   lcd.setCursor(0, 0);
-  lcd.print("Nem: ");
-  ```
-  LCD'nin birinci satırının başına gidilir ve "Nem: " yazısı yazılır.
-  
-  ```
-  nem = dht.readHumidity();
-  lcd.print(nem);
-  lcd.print(" %  ");
-  ```
-  DHT11 sensöründen nem verisi okunur, LCD’ye yüzde formatında yazdırılır.
+  lcd.print("Wifi Baglandi!");    // Bağlantı başarılı mesajı
+  delay(2000);                    // Mesajı göstermek için 2 saniye bekle
+}
+```
+## 🔁 4. loop() ve sendCommand() Fonksiyonları
+Ana döngüde her 20 saniyede bir sıcaklık ve nem verisi alınır, LCD’ye yazılır ve ThingSpeak sunucusuna gönderilir.
+```
+void loop() {
+  float h = dht.readHumidity();        // Nem değeri okunur
+  float t = dht.readTemperature();     // Sıcaklık değeri okunur
 
-  ```
+  lcd.clear();                         // LCD ekran temizlenir
+  lcd.setCursor(0, 0);                 
+  lcd.print("Nem: ");
+  lcd.print(h);
+  lcd.print(" %");
+
   lcd.setCursor(0, 1);
   lcd.print("Sicaklik: ");
-  sicaklik = dht.readTemperature();
-  lcd.print(sicaklik);
-  lcd.print(" C ");
-  ```
-İkinci satıra geçilir. Sıcaklık değeri okunur ve derece formatında ekrana yazılır.
+  lcd.print(t);
+  lcd.print(" C");
 
-```
-delay(1000); Ekran yanıp sönmesin diye 1 saniye beklenir.\
-t.update(); // Zamanlayıcıları çalıştır. Daha önce ayarlanan zamanlayıcılar (send2server() gibi) burada çalıştırılır. Bu sayede belirli aralıklarla ThingSpeak’e veri gönderilir.
-```
-## ☁️ send2server() Fonksiyonu Açıklaması
-```
-void send2server() 
-char sicaklikStr[8];
-char nemStr[8];
-```
-Sıcaklık ve nem değerlerini metin formatına (char dizisi) çevirmek için gerekli değişkenler tanımlanır.
+  // ThingSpeak’e gönderilecek veri paketi hazırlanır
+  String getData = "GET /update?api_key=" + apiKey + "&field1=" + String(h) + "&field2=" + String(t);
 
-```
-dtostrf(sicaklik, 5, 3, sicaklikStr);
-dtostrf(nem, 5, 3, nemStr);
-```
-Float tipindeki sıcaklık ve nem değerleri string’e çevrilir. Bu işlem, veriyi HTTP adresine ekleyebilmek için gerekir.
+  sendCommand("AT+CIPMUX=1", 5, "OK");                                // Çoklu bağlantı modu
+  sendCommand("AT+CIPSTART=0,\"TCP\",\"" + host + "\"," + port, 15, "OK");  // TCP bağlantısı başlat
+  sendCommand("AT+CIPSEND=0," + String(getData.length() + 4), 4, ">");     // Veri gönderimine hazırla
+  esp8266.println(getData);                                           // GET isteği gönderilir
+  delay(2000);                                                        // Gönderim sonrası bekleme
+  sendCommand("AT+CIPCLOSE=0", 5, "OK");                              // Bağlantıyı kapat
 
+  delay(20000); // 20 saniye sonra döngü yeniden başlar
+}
 ```
-char postUrl[150];
-sprintf(postUrl, "update?api_key=%s&field1=%s&field2=%s", api_anahtar, nemStr, sicaklikStr);
+🛠 sendCommand() Fonksiyonu\
+ESP8266’ya AT komutu gönderip, cevap bekleyen yardımcı fonksiyondur.
 ```
-ThingSpeak'e gönderilecek olan URL hazırlanır. API anahtarı ve sensör verileri bu linke gömülür.
+void sendCommand(String command, int maxTime, char readReply[]) {
+  Serial.print(countTrueCommand);
+  Serial.print(". AT komutu: ");
+  Serial.println(command);
 
-```
-httpGet("184.106.153.149", postUrl, 80); // ThingSpeak IP adresi
-```
-Hazırlanan URL ile HTTP GET isteği oluşturularak veri gönderilir.
+  while (countTimeCommand < (maxTime * 1)) {   // Belirtilen süre kadar komutu tekrar dener
+    esp8266.println(command);                  // Komut gönderilir
+    if (esp8266.find(readReply)) {             // Cevap aranır
+      found = true;                            // Cevap bulunduysa döngüden çıkılır
+      break;
+    }
+    countTimeCommand++;
+  }
 
-## 🌐 httpGet() Fonksiyonu Açıklaması
-```
-void httpGet(String ip, String path, int port) {
-String atHttpGetCmd = "GET /" + path + " HTTP/1.0\r\n\r\n";
-```
-GET komutu oluşturulur. Bu, sunucuya veri istemek/göndermek için kullanılır.
+  if (found) {
+    Serial.println("OK");                      // Cevap başarılıysa seri ekrana yazılır
+    countTrueCommand++;
+  } else {
+    Serial.println("Basarisiz");               // Cevap alınamazsa hata mesajı yazılır
+    countTrueCommand = 0;
+  }
 
+  countTimeCommand = 0;
+  found = false;                               // Değişkenler sıfırlanır
+}
 ```
-String atTcpPortConnectCmd = "AT+CIPSTART=\"TCP\",\"" + ip + "\"," + port;
-connect_wifi(atTcpPortConnectCmd, 1000);
-```
-ESP8266, verilen IP ve port üzerinden TCP bağlantısı kurar.
+-Gerekli kütüphaneler dahil edilip Arduino IDE üzerinden kodlar derlenir.\
 
-```
-int len = atHttpGetCmd.length();
-String atSendCmd = "AT+CIPSEND=";
-atSendCmd += len;
-connect_wifi(atSendCmd, 1000);
-```
-ESP'ye kaç karakterlik veri göndereceğimizi bildiriyoruz.
 
-```
-connect_wifi(atHttpGetCmd, 1000);
-```
-GET isteği gönderilir (URL içeren komut).
+## 🔧 Nasıl Çalışır?
 
-```
-Serial1.println("AT+CIPCLOSE"); // Bağlantıyı kapat
-```
-Sunucu ile bağlantı kapatılır. Kaynak kullanımını azaltmak için bu önemli bir adımdır.
+Dört ana bölümden oluşan bu projede:
+- Sensör Okuma:
+DHT11 sensörü, ortam sıcaklığını santigrat (°C) ve nem oranını yüzde (%) cinsinden ölçer.
+- Veri İşleme:
+Arduino Uno, bu verileri dht.readTemperature() ve dht.readHumidity() fonksiyonları ile alır ve LCD ekran üzerinden kullanıcıya sunar.
+- Veri Aktarımı:
+Ölçülen sıcaklık ve nem verileri, yazılımsal seri port (SoftwareSerial) aracılığıyla ESP8266 modülüne iletilir. ESP8266, bu verileri ThingSpeak sunucusuna bir HTTP GET isteği olarak gönderir.
+- Veri Görselleştirme:
+ThingSpeak platformu, gelen bu verileri işler ve zaman serisi grafikler şeklinde kullanıcıya sunar. Bu grafikler sayesinde ortam koşulları zamana bağlı olarak takip edilebilir.
+do[ru alındığı taktirde ThingSpeak verileri aşağıdaki gibi grafik şeklinde görüntüler:
 
+![Ekran görüntüsü 2025-04-25 022538](https://github.com/user-attachments/assets/4a2e49ce-b668-48a6-a11f-8ab68aa4e50b)
 
 
 
