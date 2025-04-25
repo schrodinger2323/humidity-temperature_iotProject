@@ -218,16 +218,98 @@ do[ru alındığı taktirde ThingSpeak verileri aşağıdaki gibi grafik şeklin
 
 ![Ekran görüntüsü 2025-04-25 022538](https://github.com/user-attachments/assets/4a2e49ce-b668-48a6-a11f-8ab68aa4e50b)
 
+## 🔬 Test Süreci ve Çıkarımlar
+1. Test Senaryosu 1 – ESP8266 modülünün temel fonksiyon testi 
+Proje sırasında karşılaştığımız, sunucuya veri iletimi sorunlarının kaynağını tespit etmek amacıyla, ESP8266 modülünün temel fonksiyonlarını test etmek üzere özel bir test kodu geliştirdik. Amacımız; modülün donanımsal olarak mı yoksa yazılımsal olarak mı sorunlu olduğunu anlamaktı.
+- 🧪 Uygulanan Test
+Aşağıdaki adımları içeren bir test dizisi oluşturuldu:
 
+  + ESP8266’nın AT komutlarına yanıt verip vermediği test edildi.
 
+  + Wi-Fi ağına bağlanma durumu kontrol edildi.
 
+  + TCP üzerinden bir web sunucusuna (httpbin.org) bağlantı kuruldu.
 
+  + Sunucuya basit bir HTTP GET isteği gönderildi.
 
+  + Sunucudan dönen cevabın doğru şekilde okunup okunmadığı analiz edildi.
 
+  + Bağlantı sonlandırılmaya çalışıldı.
 
+- 📋 Test Çıktısı ve Yorumu
 
+![Ekran görüntüsü 2025-04-25 035622](https://github.com/user-attachments/assets/585f9b37-f938-4968-ae61-ff156f66befb)
+  + ESP8266 donanımsal olarak çalışıyor ve Wi-Fi ağına başarıyla bağlanabiliyor.
 
+  + TCP bağlantısı ve veri gönderimi başarılı şekilde tamamlandı.
 
+  + Sunucudan gelen cevabın okunmasında bozulmalar gözlemlendi. Bu durum genellikle:
+
+  + UART baud rate uyumsuzluğu, fazla veri alımı nedeniyle buffer taşması, karakter kodlaması veya zamanlama sorunları gibi nedenlerden kaynaklanabilir.
+
+  + AT+CWMODE=1 ve AT+CIPCLOSE komutlarının başarısız olması, ESP'nin zamanlamaya hassas olduğunu ve bazen komutlara yeterli bekleme süresi verilmeden gönderim yapıldığını düşündürmektedir.
+- Sonuç
+Test süreci boyunca ESP8266'dan gelen bazı komut cevapları tutarsızlık gösterdi. Örneğin, bazen AT+CWMODE=1 komutu başarısız olarak raporlanırken, aslında komut arka planda başarıyla tamamlanmıştı. Aynı şekilde, bazı komutlar başarılı olarak işaretlenmesine rağmen beklenen etkiyi yaratmadı. Bu tutarsızlıkların temel nedeni, ESP8266'nın AT komutlarına verdiği cevapların zamanlaması ile ilgilidir.\
+
+ESP8266, komutlara yanıt verirken bazen gecikebilir veya beklenen yanıtın (örneğin "OK") seri port üzerinden gecikmeli olarak gelmesi, yazılım tarafında zaman aşımına neden olabilir. Bu durumda komut zamanında cevaplanmış olsa bile, bizim yazdığımız kod bu cevabı geç algıladığı için “başarısız” olarak işaretlenebilir. Özellikle SoftwareSerial kütüphanesi kullanıldığında bu tür zamanlama problemleri daha sık yaşanabilir çünkü bu kütüphane donanımsal seri portlar kadar hızlı ve güvenilir değildir.\
+
+Ayrıca bazı AT komutları (özellikle AT+CIPSTART veya AT+CIPSEND) işlem süresi daha uzun olduğu için yanıt vermeden önce daha fazla süreye ihtiyaç duyabilir. Eğer bu sürede komutun cevabı okunamazsa, sistem yanlışlıkla “komut başarısız” sonucuna varabilir.\
+
+Tüm bu tutarsızlıklara rağmen genel olarak modülün doğru çalıştığı sonucuna varabildik. Çünkü:
+
+ - AT komutlarına çoğunlukla yanıt alındı.
+
+ - Wi-Fi ağına başarıyla bağlanıldı.
+
+ - IP adresi alındı.
+
+ - Sunucuya TCP bağlantısı kurulabildi ve HTTP cevabı alındı.
+
+Bunlar, ESP8266’nın donanımsal olarak sağlıklı çalıştığını ve temel işlevlerini yerine getirebildiğinin göstergesidir. Bu test ile, donanımın sağlam olduğu, asıl problemin yazılım ve zamanlama yönetimi olduğu açıkça görülmüştür. Test sayesinde:
+
+  - Sorunun kaynağı doğru şekilde tespit edilmiştir.
+
+  - Gereksiz donanım değişikliklerinden kaçınılmıştır.
+
+  - Daha stabil ve anlaşılır bir kod yapısı kurulmuştur.
+
+2. Test Senaryosu 2 – ThingSpeak Veri Gönderim Testi
+Bu testin amacı, ESP8266 modülünün ThingSpeak sunucusuna başarılı şekilde veri gönderip gönderemediğini kontrol etmektir. Bu sayede hem Wi-Fi bağlantısının hem de internet üzerinden veri iletiminin doğru çalıştığı ve verilerin sunucuda güncellendiği doğrulanmak istenmiştir.
+- Test kodu şu adımları içerir:
+
+  + ESP8266’nın AT komutlarına yanıt verip vermediğinin kontrolü
+
+  + Wi-Fi istemci (station) moduna geçiş
+
+  + Belirtilen SSID ve şifre ile Wi-Fi ağına bağlanma
+
+  + IP adresi alınarak bağlantının doğrulanması
+
+  + ThingSpeak sunucusuna TCP bağlantı kurulması
+
+  + Rastgele üretilmiş sıcaklık ve nem verilerinin HTTP GET isteği ile gönderilmesi
+
+  + Bağlantının kapatılması
+    
+- 📋 Elde Edilen Çıktılar ve Gözlemler
+![Ekran görüntüsü 2025-04-25 041243](https://github.com/user-attachments/assets/d0884339-1bd8-4138-b39a-d0d1bb85f89c)
+
+- 🧠 Yorumlar ve Analiz
+  + AT+CWMODE=1 ve AT+CIFSR komutları başarısız görünüyor ancak bu, seri porttan gelen cevabın bozuk okunması nedeniyle oluşmuştur. ESP8266 muhtemelen bu komutları işledi.
+
+  + AT+CWJAP ve AT+CIPSTART komutları başarıyla tamamlandı; bu da modülün Wi-Fi ağına bağlanabildiğini ve internete çıkabildiğini gösteriyor.
+
+  + AT+CIPSEND komutu başarısız olarak işaretlense de ThingSpeak üzerinde veri güncellendi, bu da GET isteğinin başarıyla gönderildiğini ve işlendiğini kanıtlar.
+- ✅ Sonuç
+Bu test sayesinde:
+
+  + ESP8266'nın doğru çalıştığı, Wi-Fi bağlantısını kurabildiği ve veri iletebildiği doğrulanmıştır.
+
+  + Çıktılarda görülen bazı başarısızlıklar, zamanlama sorunları veya SoftwareSerial kaynaklı karakter bozulmaları nedeniyle oluşmuştur.
+
+  + Gerçek amaç olan ThingSpeak sunucusuna veri göndermek başarıyla gerçekleştirilmiştir.
+
+ Bu test, yazılım tarafındaki yanıt kontrol mekanizmalarının iyileştirilmesi gerektiğini gösterse de, sistemin genel işlevselliğini başarıyla kanıtlamıştır.
 
 
 
